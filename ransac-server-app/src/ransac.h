@@ -13,6 +13,8 @@ struct Point {
 
     Point(int x, int y);
 };
+bool operator<(const Point&, const Point&);
+
 // Структура представляет линейную формулу типа: y(x) = ax + b
 struct LineFormula {
     double a = 0;

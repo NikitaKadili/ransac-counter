@@ -9,13 +9,15 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -pedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Werror")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Network REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Network REQUIRED)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS PrintSupport REQUIRED)
+find_package(Qt${QT_VERSION_MAJOR} COMPONENTS PrintSupport REQUIRED)
 
 set(PROJECT_SOURCES
         src/main.cpp
@@ -24,6 +26,11 @@ set(PROJECT_SOURCES
         src/ransacserverapp.ui
         src/ransac.cpp
         src/ransac.h
+        src/addpointdialog.h
+        src/addpointdialog.cpp
+        src/addpointdialog.ui
+        src/qcustomplot.cpp
+        src/qcustomplot.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -51,6 +58,7 @@ endif()
 
 target_link_libraries(ransac-server-app PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(ransac-server-app PRIVATE Qt${QT_VERSION_MAJOR}::Network)
+target_link_libraries(ransac-server-app PRIVATE Qt${QT_VERSION_MAJOR}::PrintSupport)
 
 set_target_properties(ransac-server-app PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com

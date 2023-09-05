@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <random>
+#include <tuple>
 #include <unordered_set>
 
 ransac::RansacCounter::RansacCounter(std::vector<Point> points)
@@ -127,4 +128,8 @@ ransac::Point::Point(int x, int y) : x(x), y(y) { /* do nothing */ }
 
 double ransac::LineFormula::GetY(int x) const {
     return a * static_cast<double>(x) + b;
+}
+
+bool ransac::operator<(const Point& lhs, const Point& rhs) {
+    return std::tie(lhs.x, lhs.y) < std::tie(rhs.x, rhs.y);
 }
