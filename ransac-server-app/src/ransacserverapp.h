@@ -1,12 +1,15 @@
 #pragma once
 
 #include <fstream>
+#include <limits>
 #include <set>
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
 #include <QtWidgets>
 #include <QMainWindow>
 #include <QGraphicsScene>
+
 #include "ransac.h"
 
 QT_BEGIN_NAMESPACE
@@ -23,7 +26,6 @@ public:
 public slots:
     // Слот вызывает метод AddPointToGraph, обновляет холст и кнопки
     void slotAddPoint(int, int);
-
     // Слот проверяет, выбран ли элемент в списке.
     // Если выбран - вызывает метод RemovePoint с его индексом,
     // обновляет холст и кнопки
@@ -36,18 +38,20 @@ public slots:
     // Слот загружает точки из выбранного пользователем файла,
     // инорирует точки, не соответствующие шаблону: (XX, YY)
     void slotUploadFromFile();
+    // Слот сохраняет точки из множества points_ в указанный пользователем файл
+    void slotSaveToFile();
 
     // Слот обновляет доступность кнопок
     // при нажатии на элемент списка с точками
     void slotUnlockButtons(QListWidgetItem*);
 
-    // Слот сохраняет точки из множества points_ в указанный пользователем файл
-    void slotSaveToFile();
+    // Метод запускает процесс вычисления уравнения прямой алгоритмом RANSAC
+    void slotCountRansacModel();
 
 private:
     Ui::RansacServerApp* ui_;
 
-    std::set<ransac::Point> points_; // Множество точек
+    std::unordered_set<ransac::Point, ransac::PointHasher> points_; // Множество точек
 
     // Метод соединяет слоты с соответствующими им сигналами
     void ConnectClotsAndSignals();

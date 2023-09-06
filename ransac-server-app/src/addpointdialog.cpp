@@ -3,11 +3,13 @@
 
 #include <QIntValidator>
 
-AddPointDialog::AddPointDialog(QWidget *parent) :
+AddPointDialog::AddPointDialog(QWidget* parent) :
     QDialog(parent),
     ui_(new Ui::AddPointDialog)
 {
     ui_->setupUi(this);
+    this->setWindowTitle("Добавить точку");
+
     SetValidators();
 }
 

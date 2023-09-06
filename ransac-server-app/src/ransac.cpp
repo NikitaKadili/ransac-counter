@@ -2,12 +2,33 @@
 
 #include <algorithm>
 #include <random>
-#include <tuple>
-#include <unordered_set>
 
-ransac::RansacCounter::RansacCounter(std::vector<Point> points)
-    : points_(std::move(points))
-{ /* do nothing */ }
+ransac::RansacCounter::RansacCounter(
+        const std::unordered_set<Point, PointHasher>& points,
+        double max_y_diff)
+{
+    // Итерируемся по точкам, переносим их в вектор,
+    // параллельно находим минимумы и максимум X и Y
+    for (Point p : points) {
+        points_.push_back(std::move(p));
+
+        max_x_ = std::max(max_x_, p.x);
+        min_x_ = std::min(min_x_, p.x);
+
+        max_y_ = std::max(max_y_, p.y);
+        min_y_ = std::min(min_y_, p.y);
+    }
+
+    // Рассчитываем максимально-допустимую разницу между Y
+    // для разделения точек на входищие и не входящие, если на задана
+    if (max_y_diff == 0.0) {
+        max_y_diff_ = (max_y_ - min_y_) / 3.0;
+    }
+    // Если задана - обновляем соответствующее поле класса
+    else {
+        max_y_diff_ = max_y_diff;
+    }
+}
 
 ransac::RansacCounter& ransac::RansacCounter::SetInterations(int iterations) {
     iterations_ = iterations;
@@ -20,11 +41,12 @@ void ransac::RansacCounter::AddPoint(int x, int y) {
 
 void ransac::RansacCounter::ClearPoints() { points_.clear(); }
 
-[[nodiscard]] ransac::LineFormula ransac::RansacCounter::Count() const {
+[[nodiscard]] ransac::RansacResult ransac::RansacCounter::Count() const {
     LineFormula best_model = { -1, -1 }; // Наиболее подходящая линейная модель
+    std::vector<Point> best_inliers;
 
     if (points_.size() < 3) {
-        return best_model;
+        return { best_model, best_inliers };
     }
 
     int max_inliers = 0; // Максимально количество входящих точек
@@ -32,12 +54,7 @@ void ransac::RansacCounter::ClearPoints() { points_.clear(); }
     int min_outliers = std::numeric_limits<int>::max();
     // Размер случайных множеств
     int temp_inliers_size
-            = std::max(2, static_cast<int>(points_.size()) / 10);
-
-    // Рассчитываем максимально-допустимую разницу между Y
-    // для разделения точек на входищие и не входящие
-    auto [max_y, min_y] = GetMinMaxY();
-    double max_y_diff = (max_y - min_y) / 2.0;
+            = std::max(2, static_cast<int>(points_.size()) / 100);
 
     for (int i = 0; i < iterations_; ++i) {
         std::unordered_set<int> temp_set; // Множество случайных точек
@@ -59,30 +76,40 @@ void ransac::RansacCounter::ClearPoints() { points_.clear(); }
         LineFormula temp_model = GetApprox(temp_set);
 
         int current_inliers = 0;     // Количество входящих точек для временной модели
-        int current_outliers = 0; // // Количество не входящих точек для временной модели
+        int current_outliers = 0;    // Количество не входящих точек для временной модели
+
+        std::vector<Point> temp_inliers; // Вектор текущих входящих точек
+        temp_set.reserve(temp_inliers_size);
 
         // Находим все входящие и не входящие точки
         for (const Point& p : points_) {
-            if (std::abs(static_cast<double>(p.y) - temp_model.GetY(p.x)) <= max_y_diff) {
+            if (std::abs(static_cast<double>(p.y) - temp_model.GetY(p.x)) <= max_y_diff_) {
                 ++current_inliers;
+                temp_inliers.push_back(std::move(p));
             }
             else {
                 ++current_outliers;
             }
         }
 
-        // Если текущая модель имеет лучшие характеристики - копируем ее в best_model
+        // Если текущая модель имеет лучшие характеристики - делаем ее лучшей
         if (max_inliers < current_inliers
                 && min_outliers > current_outliers)
         {
             best_model = temp_model;
+
             max_inliers = current_inliers;
             min_outliers = current_outliers;
+
+            std::swap(best_inliers, temp_inliers);
         }
     }
 
-    return best_model;
+    return { best_model, best_inliers };
 }
+
+int ransac::RansacCounter::GetMinX() const { return min_x_; }
+int ransac::RansacCounter::GetMaxX() const { return max_x_; }
 
 int ransac::RansacCounter::GetRandomNum(int max) const {
     static std::random_device rd;
@@ -112,18 +139,6 @@ ransac::LineFormula ransac::RansacCounter::GetApprox(const std::unordered_set<in
     return { a, b };
 }
 
-std::pair<int, int> ransac::RansacCounter::GetMinMaxY() const {
-    int max_y = std::numeric_limits<int>::min(); // Максимальное значение Y
-    int min_y = std::numeric_limits<int>::max(); // Минимальное значение Y
-
-    for (const Point& p : points_) {
-        max_y = std::max(max_y, p.y);
-        min_y = std::min(min_y, p.y);
-    }
-
-    return { max_y, min_y };
-}
-
 ransac::Point::Point(int x, int y) : x(x), y(y) { /* do nothing */ }
 
 double ransac::LineFormula::GetY(int x) const {
@@ -132,4 +147,10 @@ double ransac::LineFormula::GetY(int x) const {
 
 bool ransac::operator<(const Point& lhs, const Point& rhs) {
     return std::tie(lhs.x, lhs.y) < std::tie(rhs.x, rhs.y);
+}
+bool ransac::operator==(const Point& lhs, const Point& rhs) {
+    return (lhs.x == rhs.x) && (lhs.y == rhs.y);
+}
+std::size_t ransac::PointHasher::operator()(const Point& p) const {
+    return p.x + p.y * 27;
 }

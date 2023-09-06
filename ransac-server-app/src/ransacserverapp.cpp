@@ -4,6 +4,7 @@
 
 #include <regex>
 #include <string>
+
 #include <QDebug> // DEBUG
 #include <QFileDialog>
 #include <QGraphicsView>
@@ -94,6 +95,45 @@ void RansacServerApp::slotUnlockButtons(QListWidgetItem*) {
     UpdateButtonsEnability();
 }
 
+void RansacServerApp::slotCountRansacModel() {
+    ransac::RansacCounter* counter = new ransac::RansacCounter(points_, 210.0);
+    counter->SetInterations(500);
+
+    auto ransac_result = counter->Count();
+
+    qDebug() << ransac_result.first.a << " * x + " << ransac_result.first.b;
+    // FIX ME
+    if (ui_->graph_wgt->graphCount() == 1) {
+        ui_->graph_wgt->addGraph();
+
+        ui_->graph_wgt->graph(1)->setPen(QColor(136, 154, 233));
+        ui_->graph_wgt->graph(1)->pen().setWidth(3);
+//        ui_->graph_wgt->graph(1)->setBrush(QColor(100, 100, 100));
+        ui_->graph_wgt->graph(1)->setLineStyle(QCPGraph::lsLine);
+    }
+    ui_->graph_wgt->graph(1)->data().data()->clear();
+
+    ui_->graph_wgt->graph(1)->addData(counter->GetMinX(), ransac_result.first.GetY(counter->GetMinX()));
+    ui_->graph_wgt->graph(1)->addData(counter->GetMaxX(), ransac_result.first.GetY(counter->GetMaxX()));
+
+    if (ui_->graph_wgt->graphCount() == 2) {
+        ui_->graph_wgt->addGraph();
+
+        ui_->graph_wgt->graph(2)->setPen(QColor(41, 73, 206));
+        ui_->graph_wgt->graph(2)->setBrush(QColor(41, 73, 206));
+        ui_->graph_wgt->graph(2)->setLineStyle(QCPGraph::lsNone);
+
+        ui_->graph_wgt->graph(2)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
+    }
+    ui_->graph_wgt->graph(2)->data().data()->clear();
+
+    for (const ransac::Point& p : ransac_result.second) {
+        ui_->graph_wgt->graph(2)->addData(p.x, p.y);
+    }
+
+    ui_->graph_wgt->replot();
+}
+
 void RansacServerApp::slotSaveToFile() {
     // Если множество координат пусто - выходим из метода
     if (points_.empty()) {
@@ -157,6 +197,10 @@ void RansacServerApp::ConnectClotsAndSignals() {
     // Сигнал нажатия на кнопку "Удалить"
     connect(ui_->remove_btn, SIGNAL(pressed()),
             SLOT(slotRemovePoint()));
+
+    // Сигнал нажатия на кнопку "Рассчитать"
+    connect(ui_->count_btn, SIGNAL(pressed()),
+            SLOT(slotCountRansacModel()));
 }
 
 void RansacServerApp::AddPoint(int x, int y) {
@@ -168,7 +212,7 @@ void RansacServerApp::AddPoint(int x, int y) {
         ui_->graph_wgt->graph(0)->setBrush(QColor(100, 100, 100));
         ui_->graph_wgt->graph(0)->setLineStyle(QCPGraph::lsNone);
 
-        ui_->graph_wgt->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 7));
+        ui_->graph_wgt->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
     }
 
     ransac::Point new_point(x, y);
@@ -242,7 +286,8 @@ void RansacServerApp::RemovePoint(int index) {
 }
 
 void RansacServerApp::UpdateButtonsEnability() {
-    // Делаем доступной кнопку "Сохранить в файл", если в списке есть точки
+    // Делаем доступной кнопку "Сохранить в файл", если в списке есть точки,
+    // иначе блокируем ее
     if (ui_->points_list->count() > 0) {
         ui_->save_btn->setEnabled(true);
     }
@@ -250,15 +295,24 @@ void RansacServerApp::UpdateButtonsEnability() {
         ui_->save_btn->setEnabled(false);
     }
 
-    // Делаем доступными кнопки "Изменить" и "Удалить",
-    // если какой-либо элемент списка выбран
+    // Делаем доступным кнопку "Удалить", если какой-либо элемент списка выбран,
+    // иначе блокируем ее
     if (ui_->points_list->currentItem()) {
-        ui_->change_btn->setEnabled(true);
         ui_->remove_btn->setEnabled(true);
     }
     else {
-        ui_->change_btn->setEnabled(false);
         ui_->remove_btn->setEnabled(false);
+    }
+
+    // Делаем доступными кнопку "Рассчитать" и флаг "Асинхронные вычисления",
+    // если в программу внесены 3 и более точки, иначе блокируем их
+    if (points_.size() >= 3) {
+        ui_->count_btn->setEnabled(true);
+        ui_->async_rdbtn->setEnabled(true);
+    }
+    else {
+        ui_->count_btn->setEnabled(false);
+        ui_->async_rdbtn->setEnabled(false);
     }
 }
 

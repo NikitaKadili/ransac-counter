@@ -9,7 +9,7 @@ class AddPointDialog;
 class AddPointDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit AddPointDialog(QWidget *parent = nullptr);
+    explicit AddPointDialog(QWidget* parent = nullptr);
 
     ~AddPointDialog();
 
