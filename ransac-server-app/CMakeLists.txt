@@ -21,16 +21,24 @@ find_package(Qt${QT_VERSION_MAJOR} COMPONENTS PrintSupport REQUIRED)
 
 set(PROJECT_SOURCES
         src/main.cpp
+
         src/ransacserverapp.cpp
         src/ransacserverapp.h
         src/ransacserverapp.ui
+
         src/ransac.cpp
         src/ransac.h
+
         src/addpointdialog.h
         src/addpointdialog.cpp
         src/addpointdialog.ui
+
         src/qcustomplot.cpp
         src/qcustomplot.h
+
+        src/countersettingsdialog.h
+        src/countersettingsdialog.cpp
+        src/countersettingsdialog.ui
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

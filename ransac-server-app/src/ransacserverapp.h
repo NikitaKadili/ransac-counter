@@ -24,16 +24,14 @@ public:
     ~RansacServerApp();
 
 public slots:
-    // Слот вызывает метод AddPointToGraph, обновляет холст и кнопки
-    void slotAddPoint(int, int);
     // Слот проверяет, выбран ли элемент в списке.
     // Если выбран - вызывает метод RemovePoint с его индексом,
     // обновляет холст и кнопки
     void slotRemovePoint();
 
-    // Слот создает и показывает объект класса AddPointDialog
-    // для ручного добавления новой точки
-    void slotCallAddWindow();
+    // Слот открывает окно добавления новой точки,
+    // вносит ее в соответствующие поля класса
+    void slotAddPointCalled();
 
     // Слот загружает точки из выбранного пользователем файла,
     // инорирует точки, не соответствующие шаблону: (XX, YY)
@@ -45,24 +43,30 @@ public slots:
     // при нажатии на элемент списка с точками
     void slotUnlockButtons(QListWidgetItem*);
 
-    // Метод запускает процесс вычисления уравнения прямой алгоритмом RANSAC
+    // Слот запускает процесс вычисления уравнения прямой алгоритмом RANSAC
     void slotCountRansacModel();
+
+    // Слот сбрасывает режим расчета, обновляет доступность кнопок,
+    void slotResedButtonPressed();
 
 private:
     Ui::RansacServerApp* ui_;
 
     std::unordered_set<ransac::Point, ransac::PointHasher> points_; // Множество точек
 
+    ransac::Settings ransac_settings_; // Настройки для RANSAC-алгоритма
+    bool is_countmode_on_ = false;     // Показывает, включен ли режим подсчета
+
     // Метод соединяет слоты с соответствующими им сигналами
     void ConnectClotsAndSignals();
 
     // Метод добавляет точку в необходимые поля класса
-    void AddPoint(int, int);
+    void AddPoint(ransac::Point);
     // Метод удаляет точку из всех полей класса
     void RemovePoint(int);
 
-    // Метод возвращает вектор пар координат из распарсенного файлового потока
-    std::vector<std::pair<int, int>> GetPointsFromFile(std::ifstream&) const;
+    // Метод возвращает вектор точек из распарсенного файлового потока
+    std::vector<ransac::Point> GetPointsFromFile(std::ifstream&) const;
     // Метод записывает координаты из points_ в файловый поток
     void WritePointsToFile(std::ofstream&) const;
 
@@ -71,4 +75,6 @@ private:
     // Метод перерисовывает актуальные точки из множества points_ на холст,
     // удаляет все, что было нарисовано ранее
     void RedrawPoints();
+    // Метод отрисовывает прямую, получившуюся после расчетов RANSAC-алгоритмом
+    void DrawRansacResults(ransac::RansacResult&, int, int);
 };

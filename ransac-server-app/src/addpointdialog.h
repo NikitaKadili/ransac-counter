@@ -9,14 +9,9 @@ class AddPointDialog;
 class AddPointDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit AddPointDialog(QWidget* parent = nullptr);
+    explicit AddPointDialog(QWidget* parent = nullptr, int* = nullptr, int* = nullptr);
 
     ~AddPointDialog();
-
-signals:
-    // Сигнал отправляет координаты X и Y новой точки,
-    // внесенные через форму класса
-    void signalAddPoint(int, int);
 
 public slots:
     // Слот вызывается, когда нажата кнопка "OK"
@@ -25,6 +20,9 @@ public slots:
 private:
     Ui::AddPointDialog *ui_;
 
-    // Метод устанавливает необходимые валидаторы на текстовые поля
-    void SetValidators();
+    int* x_; // Указатель на переменную значения X
+    int* y_; // Указатель на переменную значения Y
+
+    // Метод устанавливает необходимый валидатор на текстовые поля
+    void SetValidator();
 };

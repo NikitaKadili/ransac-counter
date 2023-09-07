@@ -1,6 +1,8 @@
 #include "ransacserverapp.h"
 #include "./ui_ransacserverapp.h"
+
 #include "addpointdialog.h"
+#include "countersettingsdialog.h"
 
 #include <regex>
 #include <string>
@@ -20,7 +22,7 @@ RansacServerApp::RansacServerApp(QWidget *parent)
     ui_->graph_wgt->setInteraction(QCP::iRangeZoom, true);
     ui_->graph_wgt->setInteraction(QCP::iRangeDrag, true);
 
-    // Задаем диапозон видимости от -1500 до 1500 для осей
+    // Задаем диапозон видимости от -1500 до 1500 для осей X и Y
     ui_->graph_wgt->xAxis->setRange(-1500, 1500);
     ui_->graph_wgt->yAxis->setRange(-1500, 1500);
 
@@ -31,23 +33,26 @@ RansacServerApp::~RansacServerApp() {
     delete ui_;
 }
 
-void RansacServerApp::slotAddPoint(int x, int y) {
-    AddPoint(x, y);
+void RansacServerApp::slotAddPointCalled() {
+    int x = 0;
+    int y = 0;
+
+    // Создаем объект класса окна для добавления точки (AddPointDialog),
+    // передаем указатели на x и y, открываем окно
+    AddPointDialog* add_point_window = new AddPointDialog(this, &x, &y);
+
+    // Если окно было закрыто (не нажата кнопка "ОК") - выходим из метода
+    if (add_point_window->exec() == add_point_window->Rejected) {
+        return;
+    }
+
+    // Добавляем полученные координаты
+    AddPoint({ x, y });
 
     // Обновляем холст
     ui_->graph_wgt->replot();
     // Обновляем кнопки
     UpdateButtonsEnability();
-}
-
-void RansacServerApp::slotCallAddWindow() {
-    // Создаем объект класса окна для добавления точки (AddPointDialog),
-    // соединяем необходимые сигналы со слотами
-    AddPointDialog* add_point_window = new AddPointDialog(this);
-    connect(add_point_window, SIGNAL(signalAddPoint(int, int)),
-            SLOT(slotAddPoint(int, int)));
-
-    add_point_window->exec();
 }
 
 void RansacServerApp::slotUploadFromFile() {
@@ -70,14 +75,14 @@ void RansacServerApp::slotUploadFromFile() {
     // Удаляем ранее добавленные точки
     points_.clear();
     ui_->points_list->clear();
-    // Если существует график - очищаем его
+    // Если на холсте существует график - очищаем его
     if (ui_->graph_wgt->graphCount() != 0) {
         ui_->graph_wgt->graph(0)->data().data()->clear();
     }
 
     // В случае удачи - итерируемся по распарсенным координатам, добавляем их
-    for (auto& [x, y] : GetPointsFromFile(input)) {
-        AddPoint(x, y);
+    for (ransac::Point& p : GetPointsFromFile(input)) {
+        AddPoint(std::move(p));
     }
     input.close();
 
@@ -96,42 +101,42 @@ void RansacServerApp::slotUnlockButtons(QListWidgetItem*) {
 }
 
 void RansacServerApp::slotCountRansacModel() {
-    ransac::RansacCounter* counter = new ransac::RansacCounter(points_, 210.0);
-    counter->SetInterations(500);
+    // Создаем объект класса окна указания преднастроек,
+    // передаем указатель на настройки
+    CounterSettingsDialog* counter_settings =
+            new CounterSettingsDialog(this, &ransac_settings_, points_.size());
 
+    // Если ввод данных был прерван - ничего не делаем
+    if (counter_settings->exec() == counter_settings->Rejected) {
+        return;
+    }
+
+    // Создаем объект класса RansacCounter, передаем набор точек и ссылку на указатель
+    ransac::RansacCounter* counter = new ransac::RansacCounter(points_, ransac_settings_);
     auto ransac_result = counter->Count();
 
-    qDebug() << ransac_result.first.a << " * x + " << ransac_result.first.b;
-    // FIX ME
-    if (ui_->graph_wgt->graphCount() == 1) {
-        ui_->graph_wgt->addGraph();
+    // Включаем режим подсчета, обновляем доступность кнопок
+    is_countmode_on_ = true;
+    UpdateButtonsEnability();
 
-        ui_->graph_wgt->graph(1)->setPen(QColor(136, 154, 233));
-        ui_->graph_wgt->graph(1)->pen().setWidth(3);
-//        ui_->graph_wgt->graph(1)->setBrush(QColor(100, 100, 100));
-        ui_->graph_wgt->graph(1)->setLineStyle(QCPGraph::lsLine);
-    }
+    // Отрисовываем получившуюся прямую
+    DrawRansacResults(ransac_result, counter->GetMinX(), counter->GetMaxX());
+
+    delete counter;
+}
+
+void RansacServerApp::slotResedButtonPressed() {
+    is_countmode_on_ = false;
+
+    // Очищаем графики
     ui_->graph_wgt->graph(1)->data().data()->clear();
-
-    ui_->graph_wgt->graph(1)->addData(counter->GetMinX(), ransac_result.first.GetY(counter->GetMinX()));
-    ui_->graph_wgt->graph(1)->addData(counter->GetMaxX(), ransac_result.first.GetY(counter->GetMaxX()));
-
-    if (ui_->graph_wgt->graphCount() == 2) {
-        ui_->graph_wgt->addGraph();
-
-        ui_->graph_wgt->graph(2)->setPen(QColor(41, 73, 206));
-        ui_->graph_wgt->graph(2)->setBrush(QColor(41, 73, 206));
-        ui_->graph_wgt->graph(2)->setLineStyle(QCPGraph::lsNone);
-
-        ui_->graph_wgt->graph(2)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
-    }
     ui_->graph_wgt->graph(2)->data().data()->clear();
 
-    for (const ransac::Point& p : ransac_result.second) {
-        ui_->graph_wgt->graph(2)->addData(p.x, p.y);
-    }
-
+    // Обновляем холст
     ui_->graph_wgt->replot();
+
+    // Обновляем доступность кнопок
+    UpdateButtonsEnability();
 }
 
 void RansacServerApp::slotSaveToFile() {
@@ -193,7 +198,7 @@ void RansacServerApp::ConnectClotsAndSignals() {
 
     // Cигнал нажатия кнопки "Добавить"
     connect(ui_->add_btn, SIGNAL(pressed()),
-            SLOT(slotCallAddWindow()));
+            SLOT(slotAddPointCalled()));
     // Сигнал нажатия на кнопку "Удалить"
     connect(ui_->remove_btn, SIGNAL(pressed()),
             SLOT(slotRemovePoint()));
@@ -201,9 +206,13 @@ void RansacServerApp::ConnectClotsAndSignals() {
     // Сигнал нажатия на кнопку "Рассчитать"
     connect(ui_->count_btn, SIGNAL(pressed()),
             SLOT(slotCountRansacModel()));
+
+    // Сигнал нажатия на кнопку "Сбросить вычисления"
+    connect(ui_->reset_btn, SIGNAL(pressed()),
+            SLOT(slotResedButtonPressed()));
 }
 
-void RansacServerApp::AddPoint(int x, int y) {
+void RansacServerApp::AddPoint(ransac::Point point) {
     // Если на холсте отсутствует график - создаем его
     if (ui_->graph_wgt->graphCount() == 0) {
         ui_->graph_wgt->addGraph();
@@ -215,16 +224,13 @@ void RansacServerApp::AddPoint(int x, int y) {
         ui_->graph_wgt->graph(0)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
     }
 
-    ransac::Point new_point(x, y);
     // Если точка уже существует - ничего не делаем
-    if (points_.find(new_point) != points_.end()) {
+    if (points_.find(point) != points_.end()) {
         return;
     }
 
-    // Добавляем точку в множество unique_points_
-    points_.insert(std::move(new_point));
+    QString point_str = QString::number(point.x) + ", " + QString::number(point.y);
 
-    QString point_str = QString::number(x) + ", " + QString::number(y);
     // Добавляем точку в список
     ui_->points_list->addItem(point_str);
     // Очищаем выбор в списке
@@ -232,14 +238,17 @@ void RansacServerApp::AddPoint(int x, int y) {
     ui_->points_list->selectionModel()->clear();
 
     // Отрисовываем новую точку
-    ui_->graph_wgt->graph(0)->addData(x, y);
+    ui_->graph_wgt->graph(0)->addData(point.x, point.y);
+
+    // Добавляем точку в множество unique_points_
+    points_.insert(std::move(point));
 
     // Выводим соответствующее сообщение в statusBar
     this->statusBar()->showMessage("Точка (" + point_str + ") была добавлена");
 }
 
-std::vector<std::pair<int, int>> RansacServerApp::GetPointsFromFile(std::ifstream& input) const {
-    std::vector<std::pair<int, int>> result;
+std::vector<ransac::Point> RansacServerApp::GetPointsFromFile(std::ifstream& input) const {
+    std::vector<ransac::Point> result;
     std::regex point_reg("\\(([+-]?[0-9]+), ([+-]?[0-9]+)\\)[\\s]*[\\S]*");
     std::smatch sm;
 
@@ -286,7 +295,28 @@ void RansacServerApp::RemovePoint(int index) {
 }
 
 void RansacServerApp::UpdateButtonsEnability() {
-    // Делаем доступной кнопку "Сохранить в файл", если в списке есть точки,
+    // Делаем все кнопки недоступными, кроме "Отправить" и "Сбросить",
+    // если включен режим подсчета
+    if (is_countmode_on_) {
+        ui_->remove_btn->setEnabled(false);
+        ui_->count_btn->setEnabled(false);
+        ui_->save_btn->setEnabled(false);
+        ui_->fromfile_btn->setEnabled(false);
+        ui_->add_btn->setEnabled(false);
+
+        ui_->send_btn->setEnabled(true);
+        ui_->reset_btn->setEnabled(true);
+
+        return;
+    }
+    // По умолчанию кнопки "Отправить" и "Сбросить" должны быть заблокированы,
+    // а кнопки "Загрузить" и "Добавить" - разблокированы
+    ui_->send_btn->setEnabled(false);
+    ui_->reset_btn->setEnabled(false);
+    ui_->fromfile_btn->setEnabled(true);
+    ui_->add_btn->setEnabled(true);
+
+    // Делаем доступной кнопку "СslotResedButtonPressedохранить в файл", если в списке есть точки,
     // иначе блокируем ее
     if (ui_->points_list->count() > 0) {
         ui_->save_btn->setEnabled(true);
@@ -304,15 +334,13 @@ void RansacServerApp::UpdateButtonsEnability() {
         ui_->remove_btn->setEnabled(false);
     }
 
-    // Делаем доступными кнопку "Рассчитать" и флаг "Асинхронные вычисления",
-    // если в программу внесены 3 и более точки, иначе блокируем их
+    // Делаем доступной кнопку "Рассчитать", если в программу
+    // внесены 3 и более точки, иначе блокируем ее
     if (points_.size() >= 3) {
         ui_->count_btn->setEnabled(true);
-        ui_->async_rdbtn->setEnabled(true);
     }
     else {
         ui_->count_btn->setEnabled(false);
-        ui_->async_rdbtn->setEnabled(false);
     }
 }
 
@@ -329,6 +357,45 @@ void RansacServerApp::RedrawPoints() {
     for (const ransac::Point& p : points_) {
         ui_->graph_wgt->graph(0)->addData(p.x, p.y);
     }
+
+    // Обновляем холст
+    ui_->graph_wgt->replot();
+}
+
+void RansacServerApp::DrawRansacResults(ransac::RansacResult& ransac_result,
+                                        int min_x, int max_x)
+{
+    // Если второй и третий графики не былы добавлены ранее - добавляем их
+    if (ui_->graph_wgt->graphCount() < 3) {
+        // График 1 - для линии
+        ui_->graph_wgt->addGraph();
+        ui_->graph_wgt->graph(1)->setPen(QColor(150, 150, 250));
+        ui_->graph_wgt->graph(1)->pen().setWidth(3);
+        ui_->graph_wgt->graph(1)->setLineStyle(QCPGraph::lsLine);
+
+        // График 2 - для точек
+        ui_->graph_wgt->addGraph();
+        ui_->graph_wgt->graph(2)->setPen(QColor(100, 100, 245));
+        ui_->graph_wgt->graph(2)->setBrush(QColor(100, 100, 245));
+        ui_->graph_wgt->graph(2)->setLineStyle(QCPGraph::lsNone);
+        ui_->graph_wgt->graph(2)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
+    }
+    // Очищаем графики
+    ui_->graph_wgt->graph(1)->data().data()->clear();
+    ui_->graph_wgt->graph(2)->data().data()->clear();
+
+    // Наносим на график вошедшие точки
+    for (ransac::Point& p : ransac_result.second) {
+        ui_->graph_wgt->graph(2)->addData(p.x, p.y);
+    }
+
+    // Наносим прямую на график
+    ui_->graph_wgt->graph(1)->addData(
+                min_x,
+                ransac_result.first.GetY(min_x));
+    ui_->graph_wgt->graph(1)->addData(
+                max_x,
+                ransac_result.first.GetY(max_x));
 
     // Обновляем холст
     ui_->graph_wgt->replot();
