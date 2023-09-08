@@ -4,6 +4,7 @@
 #include "addpointdialog.h"
 #include "countersettingsdialog.h"
 
+#include <chrono>
 #include <regex>
 #include <string>
 
@@ -113,7 +114,28 @@ void RansacServerApp::slotCountRansacModel() {
 
     // Создаем объект класса RansacCounter, передаем набор точек и ссылку на указатель
     ransac::RansacCounter* counter = new ransac::RansacCounter(points_, ransac_settings_);
-    auto ransac_result = counter->Count();
+
+    // Производим вычисления в соответствии с выбранным пользователем
+    // режимом (асинхронный, обычный), замеряем потраченное на это время
+    using namespace std::chrono;
+    time_point start_time = steady_clock::now();
+    ransac::RansacResult ransac_result;
+    if (ransac_settings_.is_async_required) {
+        ransac_result = counter->AsyncCount();
+    }
+    else {
+        ransac_result = counter->Count();
+    }
+    duration spent_time = steady_clock::now() - start_time;
+
+    // Выводим в statusBar формулу результирующей прямой и затраченное время
+    this->statusBar()->showMessage(
+                "Формула: "
+               + QString::number(ransac_result.first.a) + "*x + "
+               + QString::number(ransac_result.first.b) + ". "
+               "Потрачено времени: "
+               + QString::number(duration_cast<milliseconds>(spent_time).count())
+               + " ms");
 
     // Включаем режим подсчета, обновляем доступность кнопок
     is_countmode_on_ = true;
@@ -125,12 +147,17 @@ void RansacServerApp::slotCountRansacModel() {
     delete counter;
 }
 
-void RansacServerApp::slotResedButtonPressed() {
+void RansacServerApp::slotResetButtonPressed() {
+    // Отключаем режим подсчета
     is_countmode_on_ = false;
 
-    // Очищаем графики
+    // Очищаем графики с результатами подсчетов
     ui_->graph_wgt->graph(1)->data().data()->clear();
     ui_->graph_wgt->graph(2)->data().data()->clear();
+    ui_->graph_wgt->graph(3)->data().data()->clear();
+
+    // Делаем видимым основной график
+    ui_->graph_wgt->graph(0)->setVisible(true);
 
     // Обновляем холст
     ui_->graph_wgt->replot();
@@ -209,12 +236,13 @@ void RansacServerApp::ConnectClotsAndSignals() {
 
     // Сигнал нажатия на кнопку "Сбросить вычисления"
     connect(ui_->reset_btn, SIGNAL(pressed()),
-            SLOT(slotResedButtonPressed()));
+            SLOT(slotResetButtonPressed()));
 }
 
 void RansacServerApp::AddPoint(ransac::Point point) {
     // Если на холсте отсутствует график - создаем его
     if (ui_->graph_wgt->graphCount() == 0) {
+        // График 0 - основной график точек
         ui_->graph_wgt->addGraph();
 
         ui_->graph_wgt->graph(0)->setPen(QColor(100, 100, 100));
@@ -316,7 +344,7 @@ void RansacServerApp::UpdateButtonsEnability() {
     ui_->fromfile_btn->setEnabled(true);
     ui_->add_btn->setEnabled(true);
 
-    // Делаем доступной кнопку "СslotResedButtonPressedохранить в файл", если в списке есть точки,
+    // Делаем доступной кнопку "Сохранить в файл", если в списке есть точки,
     // иначе блокируем ее
     if (ui_->points_list->count() > 0) {
         ui_->save_btn->setEnabled(true);
@@ -335,8 +363,8 @@ void RansacServerApp::UpdateButtonsEnability() {
     }
 
     // Делаем доступной кнопку "Рассчитать", если в программу
-    // внесены 3 и более точки, иначе блокируем ее
-    if (points_.size() >= 3) {
+    // внесены 5 и более точек, иначе блокируем ее
+    if (points_.size() >= 5) {
         ui_->count_btn->setEnabled(true);
     }
     else {
@@ -362,31 +390,43 @@ void RansacServerApp::RedrawPoints() {
     ui_->graph_wgt->replot();
 }
 
-void RansacServerApp::DrawRansacResults(ransac::RansacResult& ransac_result,
+void RansacServerApp::DrawRansacResults(const ransac::RansacResult& ransac_result,
                                         int min_x, int max_x)
 {
-    // Если второй и третий графики не былы добавлены ранее - добавляем их
-    if (ui_->graph_wgt->graphCount() < 3) {
+    // Если графики для отображения результата расчетов
+    // не былы добавлены ранее - добавляем их
+    if (ui_->graph_wgt->graphCount() < 4) {
         // График 1 - для линии
         ui_->graph_wgt->addGraph();
         ui_->graph_wgt->graph(1)->setPen(QColor(150, 150, 250));
         ui_->graph_wgt->graph(1)->pen().setWidth(3);
         ui_->graph_wgt->graph(1)->setLineStyle(QCPGraph::lsLine);
 
-        // График 2 - для точек
+        // График 2 - для входящих точек
         ui_->graph_wgt->addGraph();
         ui_->graph_wgt->graph(2)->setPen(QColor(100, 100, 245));
         ui_->graph_wgt->graph(2)->setBrush(QColor(100, 100, 245));
         ui_->graph_wgt->graph(2)->setLineStyle(QCPGraph::lsNone);
         ui_->graph_wgt->graph(2)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
-    }
-    // Очищаем графики
-    ui_->graph_wgt->graph(1)->data().data()->clear();
-    ui_->graph_wgt->graph(2)->data().data()->clear();
 
-    // Наносим на график вошедшие точки
-    for (ransac::Point& p : ransac_result.second) {
-        ui_->graph_wgt->graph(2)->addData(p.x, p.y);
+        // График 3 - для невходящих точек
+        ui_->graph_wgt->addGraph();
+        ui_->graph_wgt->graph(3)->setPen(QColor(215, 47, 47));
+        ui_->graph_wgt->graph(3)->setBrush(QColor(215, 47, 47));
+        ui_->graph_wgt->graph(3)->setLineStyle(QCPGraph::lsNone);
+        ui_->graph_wgt->graph(3)->setScatterStyle(QCPScatterStyle(QCPScatterStyle::ssDisc, 5));
+    }
+    // Делаем невидимым основной график
+    ui_->graph_wgt->graph(0)->setVisible(false);
+
+    // Наносим на график вошедшие и не вошедшие точки
+    for (const ransac::Point& p : points_) {
+        if (ransac_result.second.find(p) != ransac_result.second.end()) {
+            ui_->graph_wgt->graph(2)->addData(p.x, p.y);
+        }
+        else {
+            ui_->graph_wgt->graph(3)->addData(p.x, p.y);
+        }
     }
 
     // Наносим прямую на график

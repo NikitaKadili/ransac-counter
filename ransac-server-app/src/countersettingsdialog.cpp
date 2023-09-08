@@ -33,6 +33,8 @@ void CounterSettingsDialog::slotValueChanged(int) {
 
     settings_->max_y_diff = static_cast<double>(ui_->max_diff_sldr->value());
     ui_->max_diff_lbl->setText(QString::number(settings_->max_y_diff));
+
+    settings_->is_async_required = ui_->async_chbox->isChecked();
 }
 
 void CounterSettingsDialog::slotUpdateAvaliability(int) {
@@ -67,6 +69,8 @@ void CounterSettingsDialog::ConnectSlotsAndSignals() {
             SLOT(slotValueChanged(int)));
     connect(ui_->max_diff_sldr, SIGNAL(valueChanged(int)),
             SLOT(slotValueChanged(int)));
+    connect(ui_->async_chbox, SIGNAL(stateChanged(int)),
+            SLOT(slotValueChanged(int)));
 
     // Установка флажка "Автоматически"
     connect(ui_->inliers_size_chbox, SIGNAL(stateChanged(int)),
@@ -88,6 +92,7 @@ void CounterSettingsDialog::UploadFromSettings(size_t total_points_num) {
     // Задаем статусы флажков
     ui_->inliers_size_chbox->setChecked(settings_->auto_inliers_size);
     ui_->max_diff_chbox->setChecked(settings_->auto_max_y_diff);
+    ui_->async_chbox->setChecked(settings_->is_async_required);
 }
 
 void CounterSettingsDialog::accept() {

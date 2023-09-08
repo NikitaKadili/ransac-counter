@@ -2,9 +2,10 @@
 
 #include <algorithm>
 #include <random>
+#include <thread>
 
 ransac::RansacCounter::RansacCounter(
-        const std::unordered_set<Point, PointHasher>& points,
+        const PointTable& points,
         Settings& settings)
     : settings_(settings)
 {
@@ -22,7 +23,7 @@ ransac::RansacCounter::RansacCounter(
 
 [[nodiscard]] ransac::RansacResult ransac::RansacCounter::Count() const {
     LineFormula best_model = { 0, 0 }; // Наиболее подходящая линейная модель
-    std::vector<Point> best_inliers;
+    PointTable best_inliers;
 
     if (points_.size() < 3) {
         return { best_model, best_inliers };
@@ -54,7 +55,8 @@ ransac::RansacCounter::RansacCounter(
         int current_inliers = 0;  // Количество входящих точек для временной модели
         int current_outliers = 0; // Количество не входящих точек для временной модели
 
-        std::vector<Point> temp_inliers; // Вектор текущих входящих точек
+        // Множество текущих входящих точек
+        PointTable temp_inliers;
         temp_set.reserve(settings_.inliers_size);
 
         // Находим все входящие и не входящие точки
@@ -63,7 +65,7 @@ ransac::RansacCounter::RansacCounter(
                     <= settings_.max_y_diff)
             {
                 ++current_inliers;
-                temp_inliers.push_back(std::move(p));
+                temp_inliers.insert(std::move(p));
             }
             else {
                 ++current_outliers;
@@ -81,6 +83,39 @@ ransac::RansacCounter::RansacCounter(
 
             std::swap(best_inliers, temp_inliers);
         }
+    }
+
+    return { best_model, best_inliers };
+}
+
+[[nodiscard]] ransac::RansacResult ransac::RansacCounter::AsyncCount() const {
+    LineFormula best_model = { 0, 0 }; // Наиболее подходящая линейная модель
+    PointTable best_inliers;
+
+    int max_inliers = 0; // Максимально количество входящих точек
+    // Минимальное количество невходящих точек
+    int min_outliers = std::numeric_limits<int>::max();
+
+    // Находим количество доступных потоков
+    size_t threads_num = std::thread::hardware_concurrency();
+    // Находим количество итераций на один поток
+    int its_per_thread = settings_.iterations_num / threads_num;
+
+    std::vector<std::thread> threads(threads_num - 1);
+    for (size_t i = 0; i < threads_num - 1; ++i) {
+        threads[i] = std::thread(&RansacCounter::AsyncCountBlock,
+                                 this,
+                                 its_per_thread,
+                                 std::ref(best_model),
+                                 std::ref(best_inliers),
+                                 std::ref(max_inliers),
+                                 std::ref(min_outliers));
+    }
+
+    AsyncCountBlock(its_per_thread, best_model, best_inliers, max_inliers, min_outliers);
+
+    for (size_t i = 0; i < threads_num - 1; ++i) {
+        threads[i].join();
     }
 
     return { best_model, best_inliers };
@@ -132,6 +167,70 @@ void ransac::RansacCounter::CopyPointsFromUnorderedSet(
         min_y_ = std::min(min_y_, p.y);
 
         points_.push_back(std::move(p));
+    }
+}
+
+void ransac::RansacCounter::AsyncCountBlock(int iterations_num,
+                                            LineFormula& best_model,
+                                            PointTable& best_inliers,
+                                            int& max_inliers,
+                                            int& min_outliers) const
+{
+    // Мьютекс для доступа к лучшей модели в процессе асинхронного вычисления
+    static std::mutex best_model_mutex;
+
+    for (int i = 0; i < iterations_num; ++i) {
+        std::unordered_set<int> temp_set; // Множество случайных точек
+        temp_set.reserve(settings_.inliers_size);
+
+        // Набираем temp_inliers_size случайных точек
+        for (int j = 0; j < settings_.inliers_size; ++j) {
+            int random_id = GetRandomNum(static_cast<int>(points_.size()));
+
+            if (temp_set.find(random_id) != temp_set.end()) {
+                --j;
+            }
+            else {
+                temp_set.insert(random_id);
+            }
+        }
+
+        // Находим модель для текущего набора случайных точек
+        LineFormula temp_model = GetApprox(temp_set);
+
+        int current_inliers = 0;  // Количество входящих точек для временной модели
+        int current_outliers = 0; // Количество не входящих точек для временной модели
+
+        // Множество текущих входящих точек
+        PointTable temp_inliers;
+        temp_set.reserve(settings_.inliers_size);
+
+        // Находим все входящие и не входящие точки
+        for (const Point& p : points_) {
+            if (std::abs(static_cast<double>(p.y) - temp_model.GetY(p.x))
+                    <= settings_.max_y_diff)
+            {
+                ++current_inliers;
+                temp_inliers.insert(std::move(p));
+            }
+            else {
+                ++current_outliers;
+            }
+        }
+
+        best_model_mutex.lock();
+        // Если текущая модель имеет лучшие характеристики - делаем ее лучшей
+        if (max_inliers < current_inliers
+                && min_outliers > current_outliers)
+        {
+            best_model = temp_model;
+
+            max_inliers = current_inliers;
+            min_outliers = current_outliers;
+
+            std::swap(best_inliers, temp_inliers);
+        }
+        best_model_mutex.unlock();
     }
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <limits>
+#include <mutex>
 #include <tuple>
 #include <vector>
 #include <unordered_set>
@@ -40,20 +41,27 @@ struct Settings {
 
     bool auto_max_y_diff = false;   // Автоматически рассчитать максимальную разницу
     bool auto_inliers_size = false; // Автоматически рассчитать размер
+
+    bool is_async_required = false; // Требуются асинхронные вычисления
 };
 
 // Представление результата вычислений RANSAC-алгоритма -
 // линейная формула и вектор входязих точек
-using RansacResult = std::pair<LineFormula, std::vector<Point>>;
+using RansacResult = std::pair<LineFormula, std::unordered_set<Point, PointHasher>>;
+// Краткое представление хэш-таблицы точек
+using PointTable = std::unordered_set<Point, PointHasher>;
 
 // Класс представляет объект, расчитывающий линейную формулу для
 // некоторого набора точек по алгоритму RANSAC
 class RansacCounter final {
 public:
-    RansacCounter(const std::unordered_set<Point, PointHasher>&, Settings&);
+    RansacCounter(const PointTable&, Settings&);
 
     // Метод возвращает результат работы RANSAC-алгоритма в виде структуры RansacResult
     RansacResult Count() const;
+    // Метод возвращает результат работы асинхронных вычислений
+    // RANSAC-алгоритма в виде структуры RansacResult
+    RansacResult AsyncCount() const;
 
     // Метод возвращает минимальное значение X из текущего заданного набора точек
     int GetMinX() const;
@@ -77,7 +85,11 @@ private:
 
     // Метод копирует копирует набор точек из unordered_set в points_,
     // параллельно находит минимумы и максимумы X и Y
-    void CopyPointsFromUnorderedSet(const std::unordered_set<Point, PointHasher>&);
+    void CopyPointsFromUnorderedSet(const PointTable&);
+
+    // Метод производит вычисления RANSAC-алгоритма ограниченное количество итераций,
+    // заносит результат в переменные, переданные по ссылке
+    void AsyncCountBlock(int, LineFormula&, PointTable&, int&, int&) const;
 };
 
 } // namespace ransac

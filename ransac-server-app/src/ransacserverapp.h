@@ -47,12 +47,12 @@ public slots:
     void slotCountRansacModel();
 
     // Слот сбрасывает режим расчета, обновляет доступность кнопок,
-    void slotResedButtonPressed();
+    void slotResetButtonPressed();
 
 private:
     Ui::RansacServerApp* ui_;
 
-    std::unordered_set<ransac::Point, ransac::PointHasher> points_; // Множество точек
+    ransac::PointTable points_; // Множество точек
 
     ransac::Settings ransac_settings_; // Настройки для RANSAC-алгоритма
     bool is_countmode_on_ = false;     // Показывает, включен ли режим подсчета
@@ -75,6 +75,6 @@ private:
     // Метод перерисовывает актуальные точки из множества points_ на холст,
     // удаляет все, что было нарисовано ранее
     void RedrawPoints();
-    // Метод отрисовывает прямую, получившуюся после расчетов RANSAC-алгоритмом
-    void DrawRansacResults(ransac::RansacResult&, int, int);
+    // Метод отрисовывает результат расчетов RANSAC-алгоритма
+    void DrawRansacResults(const ransac::RansacResult&, int, int);
 };
