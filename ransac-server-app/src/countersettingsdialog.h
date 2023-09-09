@@ -17,7 +17,7 @@ public:
 
     ~CounterSettingsDialog();
 
-public slots:
+private slots:
     // Слот реагирует на изменения величин слайдеров,
     // обновляет информацию в соответствующих лэйблах
     void slotValueChanged(int);

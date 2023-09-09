@@ -46,7 +46,7 @@ struct Settings {
 };
 
 // Представление результата вычислений RANSAC-алгоритма -
-// линейная формула и вектор входязих точек
+// линейная формула и вектор входящих точек
 using RansacResult = std::pair<LineFormula, std::unordered_set<Point, PointHasher>>;
 // Краткое представление хэш-таблицы точек
 using PointTable = std::unordered_set<Point, PointHasher>;

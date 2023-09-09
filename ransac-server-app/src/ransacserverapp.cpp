@@ -3,12 +3,12 @@
 
 #include "addpointdialog.h"
 #include "countersettingsdialog.h"
+#include "senddialog.h"
 
 #include <chrono>
 #include <regex>
 #include <string>
 
-#include <QDebug> // DEBUG
 #include <QFileDialog>
 #include <QGraphicsView>
 #include <QSharedPointer>
@@ -54,6 +54,8 @@ void RansacServerApp::slotAddPointCalled() {
     ui_->graph_wgt->replot();
     // Обновляем кнопки
     UpdateButtonsEnability();
+
+    delete add_point_window;
 }
 
 void RansacServerApp::slotUploadFromFile() {
@@ -144,6 +146,13 @@ void RansacServerApp::slotCountRansacModel() {
     // Отрисовываем получившуюся прямую
     DrawRansacResults(ransac_result, counter->GetMinX(), counter->GetMaxX());
 
+    // Вносим данные в соответствующее поле класса
+    // для будущей отправки по UDP-протоколу
+    result_data_ = {
+        std::move(ransac_result.first), counter->GetMinX(), counter->GetMaxX()
+    };
+
+    delete counter_settings;
     delete counter;
 }
 
@@ -164,6 +173,22 @@ void RansacServerApp::slotResetButtonPressed() {
 
     // Обновляем доступность кнопок
     UpdateButtonsEnability();
+}
+
+void RansacServerApp::slotSendButtonPressed() {
+    // Создаем и открываем окно настроек для отправки данных
+    SendDialog* send_dial = new SendDialog(this, &sender_settings_);
+    // Если окно завершилось с неверным кодом - выходим из слота
+    if (send_dial->exec() == send_dial->Rejected) {
+        return;
+    }
+
+    // Создаем отправщик, передаем данные для отправки датаграммы
+    ransac::Sender* sender = new ransac::Sender(this);
+    sender->SendData(sender_settings_, result_data_);
+
+    delete sender;
+    delete send_dial;
 }
 
 void RansacServerApp::slotSaveToFile() {
@@ -237,6 +262,10 @@ void RansacServerApp::ConnectClotsAndSignals() {
     // Сигнал нажатия на кнопку "Сбросить вычисления"
     connect(ui_->reset_btn, SIGNAL(pressed()),
             SLOT(slotResetButtonPressed()));
+
+    // Сигнал нажатия на кнопку "Отправить"
+    connect(ui_->send_btn, SIGNAL(pressed()),
+            SLOT(slotSendButtonPressed()));
 }
 
 void RansacServerApp::AddPoint(ransac::Point point) {

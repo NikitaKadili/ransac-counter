@@ -13,7 +13,7 @@ public:
 
     ~AddPointDialog();
 
-public slots:
+private slots:
     // Слот вызывается, когда нажата кнопка "OK"
     void accept();
 

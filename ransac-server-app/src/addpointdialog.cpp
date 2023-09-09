@@ -10,7 +10,6 @@ AddPointDialog::AddPointDialog(QWidget* parent, int* x, int* y)
     , y_(y)
 {
     ui_->setupUi(this);
-    this->setWindowTitle("Добавить точку");
 
     SetValidator();
 }

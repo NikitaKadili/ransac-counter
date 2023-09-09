@@ -4,7 +4,9 @@
 #include <random>
 #include <thread>
 
-ransac::RansacCounter::RansacCounter(
+namespace ransac {
+
+RansacCounter::RansacCounter(
         const PointTable& points,
         Settings& settings)
     : settings_(settings)
@@ -21,7 +23,7 @@ ransac::RansacCounter::RansacCounter(
     }
 }
 
-[[nodiscard]] ransac::RansacResult ransac::RansacCounter::Count() const {
+[[nodiscard]] RansacResult RansacCounter::Count() const {
     LineFormula best_model = { 0, 0 }; // Наиболее подходящая линейная модель
     PointTable best_inliers;
 
@@ -88,7 +90,7 @@ ransac::RansacCounter::RansacCounter(
     return { best_model, best_inliers };
 }
 
-[[nodiscard]] ransac::RansacResult ransac::RansacCounter::AsyncCount() const {
+[[nodiscard]] RansacResult RansacCounter::AsyncCount() const {
     LineFormula best_model = { 0, 0 }; // Наиболее подходящая линейная модель
     PointTable best_inliers;
 
@@ -121,10 +123,10 @@ ransac::RansacCounter::RansacCounter(
     return { best_model, best_inliers };
 }
 
-int ransac::RansacCounter::GetMinX() const { return min_x_; }
-int ransac::RansacCounter::GetMaxX() const { return max_x_; }
+int RansacCounter::GetMinX() const { return min_x_; }
+int RansacCounter::GetMaxX() const { return max_x_; }
 
-int ransac::RansacCounter::GetRandomNum(int max) const {
+int RansacCounter::GetRandomNum(int max) const {
     static std::random_device rd;
     static std::mt19937 g(rd());
     std::uniform_int_distribution<int> dist(0, max - 1);
@@ -132,7 +134,7 @@ int ransac::RansacCounter::GetRandomNum(int max) const {
     return dist(g);
 }
 
-ransac::LineFormula ransac::RansacCounter::GetApprox(
+LineFormula RansacCounter::GetApprox(
         const std::unordered_set<int>& points) const
 {
     double sum_x = 0.0;
@@ -154,7 +156,7 @@ ransac::LineFormula ransac::RansacCounter::GetApprox(
     return { a, b };
 }
 
-void ransac::RansacCounter::CopyPointsFromUnorderedSet(
+void RansacCounter::CopyPointsFromUnorderedSet(
         const std::unordered_set<Point, PointHasher>& points)
 {
     // Итерируемся по точкам, переносим их в вектор,
@@ -170,11 +172,11 @@ void ransac::RansacCounter::CopyPointsFromUnorderedSet(
     }
 }
 
-void ransac::RansacCounter::AsyncCountBlock(int iterations_num,
-                                            LineFormula& best_model,
-                                            PointTable& best_inliers,
-                                            int& max_inliers,
-                                            int& min_outliers) const
+void RansacCounter::AsyncCountBlock(int iterations_num,
+                                    LineFormula& best_model,
+                                    PointTable& best_inliers,
+                                    int& max_inliers,
+                                    int& min_outliers) const
 {
     // Мьютекс для доступа к лучшей модели в процессе асинхронного вычисления
     static std::mutex best_model_mutex;
@@ -234,18 +236,20 @@ void ransac::RansacCounter::AsyncCountBlock(int iterations_num,
     }
 }
 
-ransac::Point::Point(int x, int y) : x(x), y(y) { /* do nothing */ }
+Point::Point(int x, int y) : x(x), y(y) { /* do nothing */ }
 
-double ransac::LineFormula::GetY(int x) const {
+double LineFormula::GetY(int x) const {
     return a * static_cast<double>(x) + b;
 }
 
-bool ransac::operator<(const Point& lhs, const Point& rhs) {
+bool operator<(const Point& lhs, const Point& rhs) {
     return std::tie(lhs.x, lhs.y) < std::tie(rhs.x, rhs.y);
 }
-bool ransac::operator==(const Point& lhs, const Point& rhs) {
+bool operator==(const Point& lhs, const Point& rhs) {
     return (lhs.x == rhs.x) && (lhs.y == rhs.y);
 }
-std::size_t ransac::PointHasher::operator()(const Point& p) const {
+std::size_t PointHasher::operator()(const Point& p) const {
     return p.x + p.y * 27;
 }
+
+} // namespace ransac

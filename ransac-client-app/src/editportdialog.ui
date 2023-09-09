@@ -1,48 +1,62 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>AddPointDialog</class>
- <widget class="QDialog" name="AddPointDialog">
+ <class>EditPortDialog</class>
+ <widget class="QDialog" name="EditPortDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>240</width>
-    <height>151</height>
+    <width>327</width>
+    <height>96</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="windowTitle">
-   <string>Добавить точку</string>
+   <string>Ввод порта</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
-    <widget class="QLabel" name="x_lbl">
-     <property name="text">
-      <string>Координата X:</string>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="port_lbl">
+       <property name="text">
+        <string>Введите порт:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="port_edit">
+       <property name="inputMask">
+        <string>00000</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item row="1" column="0">
-    <widget class="QLineEdit" name="x_edit">
+    <widget class="QLabel" name="warning_lbl">
+     <property name="font">
+      <font>
+       <pointsize>8</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">color: rgb(224, 27, 36);</string>
+     </property>
      <property name="text">
-      <string>0</string>
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
      </property>
     </widget>
    </item>
    <item row="2" column="0">
-    <widget class="QLabel" name="y_lbl">
-     <property name="text">
-      <string>Координата Y:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLineEdit" name="y_edit">
-     <property name="text">
-      <string>0</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -59,7 +73,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>AddPointDialog</receiver>
+   <receiver>EditPortDialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -75,7 +89,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>AddPointDialog</receiver>
+   <receiver>EditPortDialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
