@@ -11,6 +11,8 @@ class EditPortDialog;
 class EditPortDialog : public QDialog {
     Q_OBJECT
 public:
+    // Конструктор принимает указатель на объект родителя,
+    // указатель на объект со значение текущего порта
     explicit EditPortDialog(QWidget* parent = nullptr, uint16_t* port = nullptr);
 
     ~EditPortDialog();

@@ -18,6 +18,7 @@ struct LineFormula {
     // Метод возвращает значение y(x)
     double GetY(int) const;
 };
+
 // Структура представляет пакет данных, получаемых от сервера,
 // содержащий функцию прямой и диапозон по оси X
 struct DataToRecieve {
@@ -32,7 +33,7 @@ class Client : public QObject {
 public:
     Client(QObject* parent = nullptr);
 
-    // Метод меняет просматриваемый порт на переданный
+    // Метод меняет текущий просматриваемый порт на новый
     void ChangePort(uint16_t);
 
     // Метод возвращает значение текущего порта
@@ -43,13 +44,12 @@ signals:
     void signalDataProceed(ransac::DataToRecieve);
 
 private slots:
-    // Слот обрабатывает
+    // Слот принимает и парсит входящие данные
     void slotDataIncoming();
 
 private:
     QUdpSocket* udp_socket_; // Указатель на сокет
-
-    uint16_t port_; // Просматриваемый порт
+    uint16_t port_;          // Просматриваемый порт
 
     // Метод объединяет сигналы с соответствующими им слотами
     void ConnectSignalsAndSlots();

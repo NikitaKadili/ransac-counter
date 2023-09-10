@@ -11,6 +11,9 @@ class CounterSettingsDialog;
 class CounterSettingsDialog : public QDialog {
     Q_OBJECT
 public:
+    // Конструктор принимает указатель на объект родителя,
+    // указатель на объект набора настроек для расчетов и
+    // общее количество точек на текущем графике
     explicit CounterSettingsDialog(QWidget* parent = nullptr,
                                    ransac::Settings* settings = nullptr,
                                    size_t total_points_num = 0);

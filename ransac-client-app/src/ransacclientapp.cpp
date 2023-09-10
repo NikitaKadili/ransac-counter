@@ -50,8 +50,7 @@ void RansacClientApp::slotPortButtonPressed() {
 
     // Создаем окно изменения порта
     EditPortDialog* edit_dialog = new EditPortDialog(this, &new_port);
-    // Если окно было закрыто без нажатия "OK", или были введены некорректные
-    // данные - выходим из слота
+    // Если окно было закрыто без нажатия "OK" - выходим из слота
     if (edit_dialog->exec() == edit_dialog->Rejected) {
         return;
     }
@@ -84,7 +83,7 @@ void RansacClientApp::DrawGraphic() {
         ui_->graph_wgt->graph(0)->pen().setWidth(3);
         ui_->graph_wgt->graph(0)->setLineStyle(QCPGraph::lsLine);
     }
-    // Очищаем график 0
+    // Очищаем график
     ui_->graph_wgt->graph(0)->data().data()->clear();
 
     // Вносим точки прямой

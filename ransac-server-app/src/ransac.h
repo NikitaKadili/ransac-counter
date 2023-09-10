@@ -55,6 +55,8 @@ using PointTable = std::unordered_set<Point, PointHasher>;
 // некоторого набора точек по алгоритму RANSAC
 class RansacCounter final {
 public:
+    // Конструктор принимает константную ссылку на хэш-таблицу точек,
+    // ссылку на набор параметров для настроек для расчетов
     RansacCounter(const PointTable&, Settings&);
 
     // Метод возвращает результат работы RANSAC-алгоритма в виде структуры RansacResult

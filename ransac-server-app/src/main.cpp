@@ -1,11 +1,12 @@
 #include <QApplication>
+
 #include "ransacserverapp.h"
 
 int main(int argc, char *argv[]) {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
 
-    RansacServerApp w;
-    w.show();
+    RansacServerApp ransac_server_window;
+    ransac_server_window.show();
 
-    return a.exec();
+    return app.exec();
 }
