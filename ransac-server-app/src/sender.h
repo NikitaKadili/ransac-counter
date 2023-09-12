@@ -6,17 +6,19 @@
 #include <QUdpSocket>
 #include <QHostAddress>
 
+#include <data_message.pb.h>
+
 #include "ransac.h"
 
 namespace ransac {
 
-// Структура представляет пакет с данными о модели
-// и диапозоне графика для отправки клиенту
+// Структура представляет пакет с необходимыми для клиента данными,
+// которые будут сериализованы и отправлены
 struct DataToSend {
     LineFormula formula; // Функция результирующей прямой
 
-    int32_t min_x; // Минимальное значение X
-    int32_t max_x; // Максимальное значение X
+    int32_t min_x = 0; // Минимальное значение X
+    int32_t max_x = 0; // Максимальное значение X
 };
 
 // Структура представляет набор настроек для отправления
@@ -37,6 +39,10 @@ public:
 
 private:
     QUdpSocket* udp_socket_; // Указатель на UDP-сокет
+
+    // Метод сериализует данные из структуры DataToSend в сообщение,
+    // описанное в data_message.proto
+    ransac_data::Data *SerializeDataToProto(const DataToSend&) const;
 };
 
 } // namespace ransac

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package ransac_data;
+
+// Формула результирующей прямой
+message Formula {
+    double a = 1;
+    double b = 2;
+}
+
+// Набор передаваемых данных
+message Data {
+    Formula formula = 1;
+    int32 min_x = 2;
+    int32 max_x = 3;
+}

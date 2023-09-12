@@ -18,6 +18,13 @@ find_package(QT NAMES Qt6 Qt5 COMPONENTS Network REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Network REQUIRED)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS PrintSupport REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS PrintSupport REQUIRED)
+# Protobuf
+find_package(Protobuf REQUIRED)
+find_package(Threads REQUIRED)
+
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
+    src/data_message.proto
+)
 
 set(PROJECT_SOURCES
         src/main.cpp
@@ -51,6 +58,8 @@ set(PROJECT_SOURCES
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(ransac-server-app
         MANUAL_FINALIZATION
+        ${PROTO_SRCS}
+        ${PROTO_HDRS}
         ${PROJECT_SOURCES}
     )
 # Define target properties for Android with Qt 6 as:
@@ -60,12 +69,16 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 else()
     if(ANDROID)
         add_library(ransac-server-app SHARED
+            ${PROTO_SRCS}
+            ${PROTO_HDRS}
             ${PROJECT_SOURCES}
         )
 # Define properties for Android with Qt 5 after find_package() calls as:
 #    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
     else()
         add_executable(ransac-server-app
+            ${PROTO_SRCS}
+            ${PROTO_HDRS}
             ${PROJECT_SOURCES}
         )
     endif()
@@ -74,6 +87,10 @@ endif()
 target_link_libraries(ransac-server-app PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(ransac-server-app PRIVATE Qt${QT_VERSION_MAJOR}::Network)
 target_link_libraries(ransac-server-app PRIVATE Qt${QT_VERSION_MAJOR}::PrintSupport)
+# Protobuf
+target_link_directories(ransac-server-app PRIVATE ${Protobuf_INCLUDE_DIRS})
+target_link_directories(ransac-server-app PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(ransac-server-app PRIVATE ${Protobuf_LIBRARY} Threads::Threads)
 
 set_target_properties(ransac-server-app PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com

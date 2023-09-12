@@ -1,7 +1,8 @@
 #include "client.h"
 
 #include <QByteArray>
-#include <QDataStream>
+
+#include <data_message.pb.h>
 
 namespace ransac {
 
@@ -26,27 +27,35 @@ uint32_t Client::GetCurrentPort() const { return port_; }
 void Client::slotDataIncoming() {
     QByteArray data;
 
-    QDataStream in(&data, QIODevice::ReadOnly);
-    in.setVersion(QDataStream::Qt_5_15);
-
     do {
         data.resize(udp_socket_->pendingDatagramSize());
         udp_socket_->readDatagram(data.data(), data.size());
     } while (udp_socket_->hasPendingDatagrams());
 
-    DataToRecieve recieved_data;
-    in >> recieved_data.formula.a
-            >> recieved_data.formula.b
-            >> recieved_data.min_x
-            >> recieved_data.max_x;
-
-    emit(signalDataProceed(recieved_data));
+    std::string ser_str(data.constData(), data.size());
+    emit(signalDataProceed(DeserializeProto(ser_str)));
 }
 
 void Client::ConnectSignalsAndSlots() {
     // Получение датаграммы сокетом
     connect(udp_socket_, SIGNAL(readyRead()),
             SLOT(slotDataIncoming()));
+}
+
+DataToRecieve Client::DeserializeProto(const std::string &ser_str) const {
+    ransac_data::Data data;
+
+    // Если не удалось распарсить - возвращаем пустую структуру
+    if (!data.ParseFromString(ser_str)) {
+        return {};
+    }
+
+    // Иначе - возвращаем полученные данные
+    return {
+        { data.formula().a(), data.formula().b() },
+        data.min_x(),
+        data.max_x()
+    };
 }
 
 double LineFormula::GetY(int x) const {

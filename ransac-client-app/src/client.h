@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 #include <QObject>
 #include <QUdpSocket>
@@ -12,8 +13,8 @@ const uint16_t DEFAULT_PORT = 1212;
 
 // Структура представляет линейную формулу типа: y(x) = ax + b
 struct LineFormula {
-    double a = 0;
-    double b = 0;
+    double a = 0.0;
+    double b = 0.0;
 
     // Метод возвращает значение y(x)
     double GetY(int) const;
@@ -24,8 +25,8 @@ struct LineFormula {
 struct DataToRecieve {
     LineFormula formula; // Функция результирующей прямой
 
-    int32_t min_x; // Минимальное значение X
-    int32_t max_x; // Максимальное значение X
+    int32_t min_x = 0; // Минимальное значение X
+    int32_t max_x = 0; // Максимальное значение X
 };
 
 class Client : public QObject {
@@ -53,6 +54,9 @@ private:
 
     // Метод объединяет сигналы с соответствующими им слотами
     void ConnectSignalsAndSlots();
+
+    // Метод десериализует данные из proto в структуру DataToRecieve
+    DataToRecieve DeserializeProto(const std::string& ser_str) const;
 };
 
 } // namespace ransac
